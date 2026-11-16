@@ -29,7 +29,7 @@ const prompt = `Leia esta conta de energia brasileira com cuidado e responda em 
 
 Regras:
 - Extraia somente valores realmente visíveis. Quando não estiver legível ou não existir, use null.
-- Extraia também o nome do titular/cliente da conta. Se não estiver claramente visível, use null.
+- Extraia também o nome do titular/cliente da conta. Procure os rótulos NOME, CLIENTE, TITULAR, CONSUMIDOR, RESPONSÁVEL ou RAZÃO SOCIAL, inclusive no bloco da unidade consumidora. Para pessoa jurídica, use a razão social. Se não estiver claramente visível, use null.
 - Nunca invente dados para preencher um campo.
 - Diferencie valor da conta, consumo em kWh e tarifa por kWh.
 - Tributos/encargos e iluminação pública devem ser valores em reais quando estiverem discriminados; use null caso contrário.

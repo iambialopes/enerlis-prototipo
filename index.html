@@ -308,7 +308,7 @@ function showAnalysis(data){
  const l=data.leitura||{}; const p=data.proposta||{};
  analysisState=data;
  const total=Number(l.valor_total); const consumo=Number(l.consumo_kwh); const economia=Number(p.economia_mensal);
- $('#aiCard').style.display='flex'; $('#aiValue').textContent=money(l.valor_total); $('#aiKwh').textContent=l.consumo_kwh?Math.round(l.consumo_kwh).toLocaleString('pt-BR')+' kWh':'Não identificado'; $('#aiDue').textContent=l.vencimento||'Não identificado'; $('#aiUtility').textContent=l.distribuidora||'Não identificada'; if(l.titular)$('#accountHolder').textContent=l.titular;
+ $('#aiCard').style.display='flex'; $('#aiValue').textContent=money(l.valor_total); $('#aiKwh').textContent=l.consumo_kwh?Math.round(l.consumo_kwh).toLocaleString('pt-BR')+' kWh':'Não identificado'; $('#aiDue').textContent=l.vencimento||'Não identificado'; $('#aiUtility').textContent=l.distribuidora||'Não identificada'; $('#accountHolder').textContent=(typeof l.titular==='string'&&l.titular.trim())?l.titular.trim():'Titular não identificado';
  $('#aiConfidence').textContent='Confiança '+Math.round((data.confianca||0)*100)+'%'; $('#aiExplanation').textContent=data.explicacao||'A IA não conseguiu gerar uma explicação.';
  if(Number.isFinite(total)&&total>0){$('#prev').textContent=brl(total);$('#prevRange').textContent=`entre ${brl(total*.95)} e ${brl(total*1.05)}`;$('#raioxBill').textContent=brl(total);} else {$('#prev').textContent='Não identificado';$('#prevRange').textContent='faixa indisponível sem valor legível';}
  if(Number.isFinite(consumo)&&consumo>0)$('#prevKwh').textContent=Math.round(consumo).toLocaleString('pt-BR')+' kWh identificados'; else $('#prevKwh').textContent='consumo não identificado';
