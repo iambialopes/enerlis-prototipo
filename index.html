@@ -154,14 +154,14 @@ nav.hide{display:none}
 <!-- Início -->
 <section class="screen" id="s-inicio" aria-label="Início" style="flex-direction:column;gap:16px">
 <header style="display:flex;align-items:center;justify-content:space-between">
-<div style="display:flex;align-items:center;gap:10px"><span class="mark" style="width:36px;height:36px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span><div style="display:flex;flex-direction:column"><span style="font-size:13px;color:var(--mut)">Olá,</span><b style="font-size:16px">Padaria do Marcos</b></div></div>
+<div style="display:flex;align-items:center;gap:10px"><span class="mark" style="width:36px;height:36px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg></span><div style="display:flex;flex-direction:column"><span style="font-size:13px;color:var(--mut)">Olá,</span><b style="font-size:16px" id="accountHolder">Padaria do Marcos</b></div></div>
 <span class="status">Atualizado agora</span>
 </header>
 <section class="dark">
 <span class="m">Previsão da próxima conta</span>
 <span class="big" id="prev">R$ 2.180</span>
-<span class="m">entre R$ 2.090 e R$ 2.270</span>
-<div style="display:flex;gap:8px;margin-top:8px"><span class="chip l">−8% vs. outubro</span><span class="m" style="padding:5px 0">1.912 kWh previstos</span></div>
+<span class="m" id="prevRange">entre R$ 2.090 e R$ 2.270</span>
+<div style="display:flex;gap:8px;margin-top:8px"><span class="chip l" id="prevDelta">−8% vs. outubro</span><span class="m" id="prevKwh" style="padding:5px 0">1.912 kWh previstos</span></div>
 </section>
 <section class="ai-card" id="aiCard" style="display:none" aria-live="polite">
 <h2><span>Leitura da sua conta</span><span class="ai-badge" id="aiConfidence">IA</span></h2>
@@ -187,7 +187,7 @@ nav.hide{display:none}
 <section class="screen" id="s-raiox" aria-label="Raio-X da conta" style="flex-direction:column;gap:16px">
 <div class="hd"><h1>Raio-X da conta</h1></div>
 <section class="card">
-<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="mut">Conta de outubro</span><span style="font-size:28px;font-weight:800">R$ 2.374</span></div>
+<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="mut">Conta identificada</span><span style="font-size:28px;font-weight:800" id="raioxBill">R$ 2.374</span></div>
 <div class="stack" role="img" aria-label="Composição: consumo 61%, tributos 19%, encargos 18%, iluminação pública 2%"><div style="width:61%;background:var(--ink)"></div><div style="width:19%;background:var(--mid)"></div><div style="width:18%;background:var(--amb)"></div><div style="width:2%;background:#9AA59E"></div></div>
 <div class="leg"><span><i style="background:var(--ink)"></i>Consumo 61%</span><span><i style="background:var(--mid)"></i>Tributos 19%</span><span><i style="background:var(--amb)"></i>Encargos 18%</span><span><i style="background:#9AA59E"></i>Ilum. pública 2%</span></div>
 <p class="mut">Em linguagem simples: <b style="color:var(--txt)">39% da conta não depende do seu consumo</b>. São tributos, encargos e iluminação pública.</p>
@@ -268,6 +268,7 @@ const mudancas=[
  {t:'Ar-condicionado em 24 °C',s:'Sem custo',v:45,on:false}
 ];
 const initialState=mudancas.map(m=>m.on);
+let analysisState=null;
 let toastTimer;
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),3200);}
 function saveState(){try{localStorage.setItem('enerlis-mudancas',JSON.stringify(mudancas.map(m=>m.on)));}catch(e){}}
@@ -287,10 +288,11 @@ function renderToggles(){
 function calc(){
  const tot=mudancas.filter(m=>m.on).reduce((a,m)=>a+m.v,0);
  const max=mudancas.reduce((a,m)=>a+m.v,0);
+ const base=Number(analysisState?.leitura?.valor_total); const conta=Number.isFinite(base)&&base>0?base:2264;
  $('#simTotal').textContent=brl(tot);
- $('#simKwh').textContent='por mês · '+Math.round(tot*12/TARIFA).toLocaleString('pt-BR')+' kWh/ano';
- $('#simFaixa').textContent= tot? `Faixa provável: ${brl(tot*0.8)} a ${brl(tot*1.17)}. Vamos conferir nas próximas contas.` : 'Ligue pelo menos uma mudança para ver a economia.';
- $('#econHome').textContent=brl(max)+'/mês';
+ const consumo=Number(analysisState?.leitura?.consumo_kwh); $('#simKwh').textContent=Number.isFinite(consumo)&&consumo>0?'por mês · impacto estimado de '+Math.round(tot/TARIFA).toLocaleString('pt-BR')+' kWh':'por mês · '+Math.round(tot*12/TARIFA).toLocaleString('pt-BR')+' kWh/ano';
+ $('#simFaixa').textContent= tot? `Conta após as mudanças: ${brl(Math.max(0,conta-tot*1.05))} a ${brl(Math.max(0,conta-tot*0.8))}.` : 'Ligue pelo menos uma mudança para ver a economia.';
+ const aiEconomia=Number(analysisState?.proposta?.economia_mensal); $('#econHome').textContent=Number.isFinite(aiEconomia)?brl(aiEconomia)+'/mês':brl(max)+'/mês';
 }
 function resetar(){mudancas.forEach((m,i)=>m.on=initialState[i]);saveState();renderToggles();toast('Sugestões iniciais restauradas.');}
 function go(name){
@@ -304,9 +306,14 @@ function money(value){return value===null||value===undefined?'Não identificado'
 function formatDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>{const max=1600;const scale=Math.min(1,max/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82));};img.onerror=reject;img.src=reader.result;};reader.onerror=reject;reader.readAsDataURL(file);});}
 function showAnalysis(data){
  const l=data.leitura||{}; const p=data.proposta||{};
- $('#aiCard').style.display='flex'; $('#aiValue').textContent=money(l.valor_total); $('#aiKwh').textContent=l.consumo_kwh?Math.round(l.consumo_kwh).toLocaleString('pt-BR')+' kWh':'Não identificado'; $('#aiDue').textContent=l.vencimento||'Não identificado'; $('#aiUtility').textContent=l.distribuidora||'Não identificada';
+ analysisState=data;
+ const total=Number(l.valor_total); const consumo=Number(l.consumo_kwh); const economia=Number(p.economia_mensal);
+ $('#aiCard').style.display='flex'; $('#aiValue').textContent=money(l.valor_total); $('#aiKwh').textContent=l.consumo_kwh?Math.round(l.consumo_kwh).toLocaleString('pt-BR')+' kWh':'Não identificado'; $('#aiDue').textContent=l.vencimento||'Não identificado'; $('#aiUtility').textContent=l.distribuidora||'Não identificada'; if(l.titular)$('#accountHolder').textContent=l.titular;
  $('#aiConfidence').textContent='Confiança '+Math.round((data.confianca||0)*100)+'%'; $('#aiExplanation').textContent=data.explicacao||'A IA não conseguiu gerar uma explicação.';
- $('#prev').textContent=money(l.valor_total); $('#econHome').textContent=brl(p.economia_mensal||0)+'/mês';
+ if(Number.isFinite(total)&&total>0){$('#prev').textContent=brl(total);$('#prevRange').textContent=`entre ${brl(total*.95)} e ${brl(total*1.05)}`;$('#raioxBill').textContent=brl(total);} else {$('#prev').textContent='Não identificado';$('#prevRange').textContent='faixa indisponível sem valor legível';}
+ if(Number.isFinite(consumo)&&consumo>0)$('#prevKwh').textContent=Math.round(consumo).toLocaleString('pt-BR')+' kWh identificados'; else $('#prevKwh').textContent='consumo não identificado';
+ $('#prevDelta').textContent=Number.isFinite(economia)&&economia>0&&Number.isFinite(total)&&total>0?`até −${Math.round(economia/total*100)}% potencial`:'estimativa baseada na conta';
+ $('#econHome').textContent=Number.isFinite(economia)?brl(economia)+'/mês':'Não calculada'; $('#metaValor').textContent=Number.isFinite(total)?brl(total):'Não identificado'; calc();
  $('#aiRecommendations').innerHTML=(p.recomendacoes||[]).slice(0,3).map(r=>`<div class="recommendation"><b>${r.titulo}</b>${r.descricao} Economia estimada: <strong>${brl(r.economia_estimada||0)}/mês</strong>.</div>`).join('');
 }
 async function analyzeImage(file){
@@ -335,7 +342,7 @@ $('#exemplo').addEventListener('click',startApp);
 $('#foto').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; if(f){const im=$('#preview');im.src=URL.createObjectURL(f);im.style.display='block';analyzeImage(f);}});
 $('#comoCalc').addEventListener('click',()=>sheet('Como calculamos','Lemos na conta o consumo em kWh, a tarifa, a bandeira e os tributos. A divisão por uso é estimada a partir dos equipamentos e horários que você informa, por isso cada número tem margem de erro (±). Nada é medido por sensores.'));
 $('#orcamento').addEventListener('click',()=>sheet('Pedido enviado (simulação)','Em um app real, um parceiro local entraria em contato com o orçamento da troca para LED. Neste protótipo nenhum dado é enviado.'));
-$('#adotar').addEventListener('click',()=>{const tot=mudancas.filter(m=>m.on).reduce((a,m)=>a+m.v,0);$('#metaValor').textContent=brl(2264-tot);go('metas');toast('Meta atualizada com as mudanças selecionadas.');});
+$('#adotar').addEventListener('click',()=>{const tot=mudancas.filter(m=>m.on).reduce((a,m)=>a+m.v,0);const base=Number(analysisState?.leitura?.valor_total);$('#metaValor').textContent=brl((Number.isFinite(base)&&base>0?base:2264)-tot);go('metas');toast('Meta atualizada com as mudanças selecionadas.');});
 $('#resetar').addEventListener('click',resetar);
 $('#sheetOk').addEventListener('click',()=>$('#sheetbg').classList.remove('on'));
 $('#sheetbg').addEventListener('click',e=>{if(e.target.id==='sheetbg')$('#sheetbg').classList.remove('on');});

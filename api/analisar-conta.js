@@ -7,9 +7,9 @@ const schema = {
     leitura: {
       type: 'object', additionalProperties: false,
       properties: {
-        valor_total: { type: ['number', 'null'] }, consumo_kwh: { type: ['number', 'null'] }, periodo: { type: ['string', 'null'] }, vencimento: { type: ['string', 'null'] }, tarifa_kwh: { type: ['number', 'null'] }, bandeira: { type: ['string', 'null'] }, tributos_encargos: { type: ['number', 'null'] }, iluminacao_publica: { type: ['number', 'null'] }, distribuidora: { type: ['string', 'null'] },
+        titular: { type: ['string', 'null'] }, valor_total: { type: ['number', 'null'] }, consumo_kwh: { type: ['number', 'null'] }, periodo: { type: ['string', 'null'] }, vencimento: { type: ['string', 'null'] }, tarifa_kwh: { type: ['number', 'null'] }, bandeira: { type: ['string', 'null'] }, tributos_encargos: { type: ['number', 'null'] }, iluminacao_publica: { type: ['number', 'null'] }, distribuidora: { type: ['string', 'null'] },
       },
-      required: ['valor_total', 'consumo_kwh', 'periodo', 'vencimento', 'tarifa_kwh', 'bandeira', 'tributos_encargos', 'iluminacao_publica', 'distribuidora'],
+      required: ['titular', 'valor_total', 'consumo_kwh', 'periodo', 'vencimento', 'tarifa_kwh', 'bandeira', 'tributos_encargos', 'iluminacao_publica', 'distribuidora'],
     },
     confianca: { type: 'number' }, observacoes: { type: 'array', items: { type: 'string' } }, explicacao: { type: 'string' },
     grupos_consumo: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { nome: { type: 'string' }, percentual: { type: 'number' }, margem: { type: 'number' }, justificativa: { type: 'string' } }, required: ['nome', 'percentual', 'margem', 'justificativa'] } },
@@ -29,6 +29,7 @@ const prompt = `Leia esta conta de energia brasileira com cuidado e responda em 
 
 Regras:
 - Extraia somente valores realmente visíveis. Quando não estiver legível ou não existir, use null.
+- Extraia também o nome do titular/cliente da conta. Se não estiver claramente visível, use null.
 - Nunca invente dados para preencher um campo.
 - Diferencie valor da conta, consumo em kWh e tarifa por kWh.
 - Tributos/encargos e iluminação pública devem ser valores em reais quando estiverem discriminados; use null caso contrário.
