@@ -11,6 +11,18 @@ Protótipo do aplicativo de gestão inteligente de energia com IA (projeto acad�
 - Metadados de descrição para compartilhamento e melhor indexação.
 - Navegação por hash preservada (`#inicio`, `#raiox`, `#simulador`, `#metas`).
 
+## API de leitura com IA
+
+O endpoint `POST /api/analisar-conta` recebe `{ "image": "data:image/jpeg;base64,..." }` e devolve a leitura estruturada da conta, confiança, explicação, grupos de consumo e proposta de economia. A imagem é comprimida no navegador antes do envio e a chave do provedor fica somente no ambiente da Vercel.
+
+Configure na Vercel:
+
+- `OPENAI_API_KEY`: chave privada do provedor de IA.
+- `OPENAI_VISION_MODEL`: opcional; por padrão usa `gpt-4o-mini`.
+- `OPENAI_API_BASE`: opcional; por padrão usa `https://api.openai.com/v1`.
+
+Sem `OPENAI_API_KEY`, a interface permanece navegável, mas a leitura real retorna uma mensagem de configuração pendente.
+
 ## Testar no computador
 
 Dê dois cliques em `index.html`. Ele abre no navegador.

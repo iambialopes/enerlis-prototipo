@@ -102,6 +102,15 @@ nav.hide{display:none}
 .reset{align-self:center;background:none;border:0;color:var(--mut);font-size:12px;text-decoration:underline;padding:5px}
 .toast{position:absolute;left:16px;right:16px;bottom:86px;z-index:8;background:var(--ink);color:#fff;border-radius:14px;padding:13px 15px;font-size:13px;line-height:1.4;box-shadow:0 12px 28px rgba(15,61,46,.28);transform:translateY(18px);opacity:0;pointer-events:none;transition:.25s ease}
 .toast.on{transform:translateY(0);opacity:1}
+.ai-card{background:#F0F8F3;border:1px solid #CBE5D4;border-radius:20px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.ai-card h2{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ai-badge{font-size:11px;font-weight:700;background:#DDF3E5;color:var(--ink);padding:5px 8px;border-radius:999px;white-space:nowrap}
+.ai-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ai-grid div{background:#fff;border-radius:12px;padding:9px 10px;display:flex;flex-direction:column;gap:2px}
+.ai-grid small{color:var(--mut);font-size:11px}.ai-grid b{font-size:14px}
+.recommendations{display:flex;flex-direction:column;gap:8px;margin-top:2px}
+.recommendation{background:#fff;border-radius:12px;padding:10px 11px;font-size:12px;line-height:1.4}
+.recommendation b{display:block;font-size:13px;margin-bottom:3px}
 </style>
 </head>
 <body>
@@ -153,6 +162,12 @@ nav.hide{display:none}
 <span class="big" id="prev">R$ 2.180</span>
 <span class="m">entre R$ 2.090 e R$ 2.270</span>
 <div style="display:flex;gap:8px;margin-top:8px"><span class="chip l">−8% vs. outubro</span><span class="m" style="padding:5px 0">1.912 kWh previstos</span></div>
+</section>
+<section class="ai-card" id="aiCard" style="display:none" aria-live="polite">
+<h2><span>Leitura da sua conta</span><span class="ai-badge" id="aiConfidence">IA</span></h2>
+<div class="ai-grid"><div><small>Valor identificado</small><b id="aiValue">—</b></div><div><small>Consumo</small><b id="aiKwh">—</b></div><div><small>Vencimento</small><b id="aiDue">—</b></div><div><small>Distribuidora</small><b id="aiUtility">—</b></div></div>
+<p class="mut" id="aiExplanation"></p>
+<div class="recommendations" id="aiRecommendations"></div>
 </section>
 <section class="limecard">
 <div style="display:flex;flex-direction:column;gap:2px"><span style="font-size:13px;font-weight:600;color:var(--ink)">Você pode economizar até</span><span style="font-size:24px;font-weight:800;color:var(--ink)" id="econHome">R$ 259/mês</span></div>
@@ -285,6 +300,26 @@ function go(name){
  $('#app').scrollTop=0;
  try{ if(location.hash!=='#'+name) history.replaceState(null,'','#'+name);}catch(e){}
 }
+function money(value){return value===null||value===undefined?'Não identificado':brl(value);}
+function formatDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>{const max=1600;const scale=Math.min(1,max/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82));};img.onerror=reject;img.src=reader.result;};reader.onerror=reject;reader.readAsDataURL(file);});}
+function showAnalysis(data){
+ const l=data.leitura||{}; const p=data.proposta||{};
+ $('#aiCard').style.display='flex'; $('#aiValue').textContent=money(l.valor_total); $('#aiKwh').textContent=l.consumo_kwh?Math.round(l.consumo_kwh).toLocaleString('pt-BR')+' kWh':'Não identificado'; $('#aiDue').textContent=l.vencimento||'Não identificado'; $('#aiUtility').textContent=l.distribuidora||'Não identificada';
+ $('#aiConfidence').textContent='Confiança '+Math.round((data.confianca||0)*100)+'%'; $('#aiExplanation').textContent=data.explicacao||'A IA não conseguiu gerar uma explicação.';
+ $('#prev').textContent=money(l.valor_total); $('#econHome').textContent=brl(p.economia_mensal||0)+'/mês';
+ $('#aiRecommendations').innerHTML=(p.recomendacoes||[]).slice(0,3).map(r=>`<div class="recommendation"><b>${r.titulo}</b>${r.descricao} Economia estimada: <strong>${brl(r.economia_estimada||0)}/mês</strong>.</div>`).join('');
+}
+async function analyzeImage(file){
+ const started=Date.now(); $('#s-welcome').classList.remove('on'); $('#s-loading').classList.add('on');
+ const st=[...document.querySelectorAll('#steps div')]; st.forEach(x=>{x.classList.remove('ok');x.querySelector('.d').textContent='';});
+ const timer=setInterval(()=>{const next=st.find(x=>!x.classList.contains('ok'));if(next){next.classList.add('ok');next.querySelector('.d').innerHTML='✓';}},600);
+ try{
+  const image=await formatDataUrl(file); const res=await fetch('/api/analisar-conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image})}); const payload=await res.json(); if(!res.ok)throw new Error(payload.error||'Não foi possível analisar a conta.');
+  const remaining=Math.max(0,1800-(Date.now()-started)); await new Promise(r=>setTimeout(r,remaining)); showAnalysis(payload.data);
+  $('#s-loading').classList.remove('on'); $('#app').style.display='flex'; $('#nav').classList.remove('hide'); go('inicio'); toast('Conta lida pela IA. Confira os dados e as estimativas.');
+ }catch(error){$('#s-loading').classList.remove('on');$('#s-welcome').classList.add('on');toast(error.message);}
+ finally{clearInterval(timer);}
+}
 function startApp(){
  $('#s-welcome').classList.remove('on'); $('#s-loading').classList.add('on');
  const st=[...document.querySelectorAll('#steps div')]; let i=0;
@@ -294,7 +329,7 @@ function startApp(){
 function sheet(t,p){$('#sheetT').textContent=t;$('#sheetP').textContent=p;$('#sheetbg').classList.add('on');$('#sheetOk').focus();}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-go]'); if(b){go(b.dataset.go);}});
 $('#exemplo').addEventListener('click',startApp);
-$('#foto').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; if(f){const im=$('#preview');im.src=URL.createObjectURL(f);im.style.display='block';setTimeout(startApp,700);}});
+$('#foto').addEventListener('change',e=>{const f=e.target.files&&e.target.files[0]; if(f){const im=$('#preview');im.src=URL.createObjectURL(f);im.style.display='block';analyzeImage(f);}});
 $('#comoCalc').addEventListener('click',()=>sheet('Como calculamos','Lemos na conta o consumo em kWh, a tarifa, a bandeira e os tributos. A divisão por uso é estimada a partir dos equipamentos e horários que você informa, por isso cada número tem margem de erro (±). Nada é medido por sensores.'));
 $('#orcamento').addEventListener('click',()=>sheet('Pedido enviado (simulação)','Em um app real, um parceiro local entraria em contato com o orçamento da troca para LED. Neste protótipo nenhum dado é enviado.'));
 $('#adotar').addEventListener('click',()=>{const tot=mudancas.filter(m=>m.on).reduce((a,m)=>a+m.v,0);$('#metaValor').textContent=brl(2264-tot);go('metas');toast('Meta atualizada com as mudanças selecionadas.');});
