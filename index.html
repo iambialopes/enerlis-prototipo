@@ -269,6 +269,12 @@ const mudancas=[
 ];
 const initialState=mudancas.map(m=>m.on);
 let analysisState=null;
+function economiaEfetiva(data){
+ const p=data?.proposta||{}; const direta=Number(p.economia_mensal); if(Number.isFinite(direta)&&direta>0)return Math.round(direta);
+ const recs=(p.recomendacoes||[]).map(r=>Number(r.economia_estimada)).filter(v=>Number.isFinite(v)&&v>0); const soma=recs.reduce((a,v)=>a+v,0); if(soma>0)return Math.round(soma);
+ const total=Number(data?.leitura?.valor_total); if(Number.isFinite(total)&&total>0){const simulador=mudancas.reduce((a,m)=>a+m.v,0);return Math.min(simulador,Math.max(1,Math.round(total*.25)));}
+ return 0;
+}
 let toastTimer;
 function toast(message){const el=$('#toast');el.textContent=message;el.classList.add('on');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('on'),3200);}
 function saveState(){try{localStorage.setItem('enerlis-mudancas',JSON.stringify(mudancas.map(m=>m.on)));}catch(e){}}
@@ -292,7 +298,7 @@ function calc(){
  $('#simTotal').textContent=brl(tot);
  const consumo=Number(analysisState?.leitura?.consumo_kwh); $('#simKwh').textContent=Number.isFinite(consumo)&&consumo>0?'por mês · impacto estimado de '+Math.round(tot/TARIFA).toLocaleString('pt-BR')+' kWh':'por mês · '+Math.round(tot*12/TARIFA).toLocaleString('pt-BR')+' kWh/ano';
  $('#simFaixa').textContent= tot? `Conta após as mudanças: ${brl(Math.max(0,conta-tot*1.05))} a ${brl(Math.max(0,conta-tot*0.8))}.` : 'Ligue pelo menos uma mudança para ver a economia.';
- const aiEconomia=Number(analysisState?.proposta?.economia_mensal); $('#econHome').textContent=Number.isFinite(aiEconomia)?brl(aiEconomia)+'/mês':brl(max)+'/mês';
+ const aiEconomia=Number(analysisState?.economiaEfetiva); $('#econHome').textContent=analysisState?(aiEconomia>0?brl(aiEconomia)+'/mês':'Não calculada'):brl(max)+'/mês';
 }
 function resetar(){mudancas.forEach((m,i)=>m.on=initialState[i]);saveState();renderToggles();toast('Sugestões iniciais restauradas.');}
 function go(name){
@@ -306,14 +312,13 @@ function money(value){return value===null||value===undefined?'Não identificado'
 function formatDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>{const max=1600;const scale=Math.min(1,max/Math.max(img.width,img.height));const canvas=document.createElement('canvas');canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);resolve(canvas.toDataURL('image/jpeg',.82));};img.onerror=reject;img.src=reader.result;};reader.onerror=reject;reader.readAsDataURL(file);});}
 function showAnalysis(data){
  const l=data.leitura||{}; const p=data.proposta||{};
- analysisState=data;
- const total=Number(l.valor_total); const consumo=Number(l.consumo_kwh); const economia=Number(p.economia_mensal);
+ const total=Number(l.valor_total); const consumo=Number(l.consumo_kwh); const economia=economiaEfetiva(data); analysisState={...data,economiaEfetiva:economia};
  $('#aiCard').style.display='flex'; $('#aiValue').textContent=money(l.valor_total); $('#aiKwh').textContent=l.consumo_kwh?Math.round(l.consumo_kwh).toLocaleString('pt-BR')+' kWh':'Não identificado'; $('#aiDue').textContent=l.vencimento||'Não identificado'; $('#aiUtility').textContent=l.distribuidora||'Não identificada'; $('#accountHolder').textContent=(typeof l.titular==='string'&&l.titular.trim())?l.titular.trim():'Titular não identificado';
  $('#aiConfidence').textContent='Confiança '+Math.round((data.confianca||0)*100)+'%'; $('#aiExplanation').textContent=data.explicacao||'A IA não conseguiu gerar uma explicação.';
  if(Number.isFinite(total)&&total>0){$('#prev').textContent=brl(total);$('#prevRange').textContent=`entre ${brl(total*.95)} e ${brl(total*1.05)}`;$('#raioxBill').textContent=brl(total);} else {$('#prev').textContent='Não identificado';$('#prevRange').textContent='faixa indisponível sem valor legível';}
  if(Number.isFinite(consumo)&&consumo>0)$('#prevKwh').textContent=Math.round(consumo).toLocaleString('pt-BR')+' kWh identificados'; else $('#prevKwh').textContent='consumo não identificado';
  $('#prevDelta').textContent=Number.isFinite(economia)&&economia>0&&Number.isFinite(total)&&total>0?`até −${Math.round(economia/total*100)}% potencial`:'estimativa baseada na conta';
- $('#econHome').textContent=Number.isFinite(economia)?brl(economia)+'/mês':'Não calculada'; $('#metaValor').textContent=Number.isFinite(total)?brl(total):'Não identificado'; calc();
+ $('#econHome').textContent=economia>0?brl(economia)+'/mês':'Não calculada'; $('#metaValor').textContent=Number.isFinite(total)?brl(total):'Não identificado'; calc();
  $('#aiRecommendations').innerHTML=(p.recomendacoes||[]).slice(0,3).map(r=>`<div class="recommendation"><b>${r.titulo}</b>${r.descricao} Economia estimada: <strong>${brl(r.economia_estimada||0)}/mês</strong>.</div>`).join('');
 }
 async function analyzeImage(file){
