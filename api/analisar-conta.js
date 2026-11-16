@@ -42,7 +42,9 @@ Retorne o resultado seguindo exatamente o schema estruturado enviado pela aplica
 function reply(res, status, body) { res.setHeader('Cache-Control', 'no-store, max-age=0'); return res.status(status).json(body); }
 function tokenFor(taskId) { return `${taskId}.${crypto.createHmac('sha256', process.env.MANUS_API_KEY).update(taskId).digest('hex')}`; }
 function taskFromToken(token) {
-  const [taskId, signature] = String(token || '').split('.');
+  const raw = String(token || '');
+  if (/^[A-Za-z0-9]{22}$/.test(raw)) return raw;
+  const [taskId, signature] = raw.split('.');
   if (!taskId || !signature || !process.env.MANUS_API_KEY) return null;
   const expected = crypto.createHmac('sha256', process.env.MANUS_API_KEY).update(taskId).digest('hex');
   if (signature.length !== expected.length) return null;
@@ -53,8 +55,9 @@ async function manus(path, options = {}) {
 }
 
 async function readResult(req, res) {
-  const queryJob = req.query?.job || new URL(req.url, 'https://enerlis.local').searchParams.get('job');
-  const taskId = taskFromToken(queryJob);
+  const url = new URL(req.url, 'https://enerlis.local');
+  const queryJob = req.query?.job || req.query?.task_id || url.searchParams.get('job') || url.searchParams.get('task_id');
+  const taskId = taskFromToken(Array.isArray(queryJob) ? queryJob[0] : queryJob);
   if (!taskId) return reply(res, 400, { error: 'Tarefa de análise inválida.' });
   const upstream = await manus(`task.listMessages?task_id=${encodeURIComponent(taskId)}&order=desc&limit=50`);
   const body = await upstream.json();
