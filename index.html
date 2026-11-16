@@ -140,7 +140,7 @@ nav.hide{display:none}
 <!-- Leitura -->
 <section class="screen loading" id="s-loading" aria-label="Lendo a conta" aria-live="polite">
 <div class="spin" aria-hidden="true"></div>
-<h1 style="margin:0;font-size:24px;color:var(--ink)">Lendo sua conta…</h1>
+<h1 id="loadingMessage" style="margin:0;font-size:24px;color:var(--ink)">Lendo sua conta…</h1>
 <div class="steps" id="steps">
 <div><span class="d"></span>Reconhecendo o texto da conta</div>
 <div><span class="d"></span>Identificando tarifa, bandeira e tributos</div>
@@ -314,8 +314,9 @@ async function analyzeImage(file){
  const st=[...document.querySelectorAll('#steps div')]; st.forEach(x=>{x.classList.remove('ok');x.querySelector('.d').textContent='';});
  const timer=setInterval(()=>{const next=st.find(x=>!x.classList.contains('ok'));if(next){next.classList.add('ok');next.querySelector('.d').innerHTML='✓';}},600);
  try{
-  const image=await formatDataUrl(file); const res=await fetch('/api/analisar-conta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image})}); let payload=await res.json(); if(!res.ok && res.status!==202)throw new Error(payload.error||'Não foi possível iniciar a análise.');
-  for(let i=0;payload.pending&&i<15;i++){await new Promise(r=>setTimeout(r,1800));const check=await fetch('/api/analisar-conta?job='+encodeURIComponent(payload.job)+'&t='+Date.now(),{cache:'no-store'});payload=await check.json();if(!check.ok&&check.status!==202)throw new Error(payload.error||'Não foi possível concluir a análise.');}
+  const image=await formatDataUrl(file); const res=await fetch('/api/analisar-conta?start='+Date.now(),{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({image})}); let payload=await res.json(); if(!res.ok && res.status!==202)throw new Error(payload.error||'Não foi possível iniciar a análise.');
+  if(!payload.job)throw new Error('Não recebemos o identificador da tarefa. Recarregue a página e tente novamente.');
+  for(let i=0;payload.pending&&i<45;i++){if(i===5)$('#loadingMessage').textContent='A IA ainda está analisando a conta…';await new Promise(r=>setTimeout(r,2000));const check=await fetch('/api/analisar-conta?job='+encodeURIComponent(payload.job)+'&t='+Date.now(),{cache:'no-store'});payload=await check.json();if(!check.ok&&check.status!==202)throw new Error(payload.error||'Não foi possível concluir a análise.');}
   if(!payload.data)throw new Error('A análise demorou mais que o esperado. Tente novamente.');
   const remaining=Math.max(0,1800-(Date.now()-started)); await new Promise(r=>setTimeout(r,remaining)); showAnalysis(payload.data);
   $('#s-loading').classList.remove('on'); $('#app').style.display='flex'; $('#nav').classList.remove('hide'); go('inicio'); toast('Conta lida pela IA. Confira os dados e as estimativas.');
