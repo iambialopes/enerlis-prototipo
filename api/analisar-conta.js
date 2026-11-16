@@ -39,7 +39,7 @@ Regras:
 
 Retorne o resultado seguindo exatamente o schema estruturado enviado pela aplicação.`;
 
-function reply(res, status, body) { return res.status(status).json(body); }
+function reply(res, status, body) { res.setHeader('Cache-Control', 'no-store, max-age=0'); return res.status(status).json(body); }
 function tokenFor(taskId) { return `${taskId}.${crypto.createHmac('sha256', process.env.MANUS_API_KEY).update(taskId).digest('hex')}`; }
 function taskFromToken(token) {
   const [taskId, signature] = String(token || '').split('.');
@@ -53,7 +53,8 @@ async function manus(path, options = {}) {
 }
 
 async function readResult(req, res) {
-  const taskId = taskFromToken(req.query?.job);
+  const queryJob = req.query?.job || new URL(req.url, 'https://enerlis.local').searchParams.get('job');
+  const taskId = taskFromToken(queryJob);
   if (!taskId) return reply(res, 400, { error: 'Tarefa de análise inválida.' });
   const upstream = await manus(`task.listMessages?task_id=${encodeURIComponent(taskId)}&order=desc&limit=50`);
   const body = await upstream.json();
